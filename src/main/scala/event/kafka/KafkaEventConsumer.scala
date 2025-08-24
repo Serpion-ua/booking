@@ -26,11 +26,16 @@ object KafkaEventConsumer {
         .evalTap(_.subscribeTo(cfg.topicName))
         .flatMap { consumer =>
           Logger[F].debug("Start booking conflict consumer fiber").toResource >>
-            consumer.stream
+            consumer.stream //TODO use partitioning for faster processing, handler could be really slow
               .evalMap { committable =>
-                Logger[F].info(s"Received for topic ${cfg.topicName}: $committable") >>
-                  handler(committable.record.value) >>
-                  committable.offset.commit
+                for {
+                  _ <- Logger[F].info(s"Received for topic ${cfg.topicName}: $committable")
+                  _ <- handler(committable.record.value)
+                    .handleErrorWith { e =>
+                      Logger[F].error(e)(s"Failed to process record: ${committable.record}") //TODO error handling
+                    }
+                  _ <- committable.offset.commit
+                } yield ()
               }
               .compile
               .drain

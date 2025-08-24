@@ -24,7 +24,7 @@ object KafkaEventProducer {
         .flatMap { producer =>
           Stream
             .fromQueueUnterminated(queue)
-            .evalMap { conflict =>
+            .parEvalMapUnorderedUnbounded { conflict =>
               val key = conflict.homeId.toString
               val record = ProducerRecord(cfg.topicName, key, conflict)
               producer.produce(ProducerRecords.one(record)).flatten.attempt.flatMap {

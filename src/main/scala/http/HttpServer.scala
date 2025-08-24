@@ -6,7 +6,7 @@ import cats.effect.unsafe.IORuntime
 import cats.implicits.toFunctorOps
 import com.comcast.ip4s.{Host, Port}
 import graphql.GraphQLSchema
-import io.circe.Json
+import io.circe.{Decoder, Json}
 import org.http4s._
 import org.http4s.circe._
 import org.http4s.dsl.io._
@@ -20,26 +20,35 @@ import sangria.parser.QueryParser
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
+
+
 object HttpServer {
 
   private def routes(context: GraphQLSchema.Context[IO])(implicit IoRuntime: IORuntime, logger: Logger[IO]): HttpRoutes[IO] =
     HttpRoutes.of[IO] { case req @ POST -> Root / "graphql" =>
       for {
-        json <- req.as[Json]
-        queryStr = json.hcursor.get[String]("query").getOrElse("")
-        vars = json.hcursor.get[Json]("variables").toOption.getOrElse(Json.obj())
-        response <- QueryParser.parse(queryStr) match {
+        json <- req.as[GraphQLRequest]
+        response <- QueryParser.parse(json.query) match {
           case Success(ast) =>
             Executor
-              .execute(GraphQLSchema.schema, ast, context, variables = vars)
+              .execute(
+                GraphQLSchema.schema,
+                ast,
+                context,
+                variables = json.variables.getOrElse(Json.obj()),
+                operationName = json.operationName
+              )
               .attempt
               .flatMap {
                 case Right(resultJson) => Ok(resultJson)
-                case Left(error) =>
-                  logger.error(s"Error: ${error.getMessage}") >>
-                    BadRequest(formatError(error))
+                case Left(error) => logger.error(error)(s"GraphQL execution failed") >> BadRequest(formatError(error))
               }
-          case Failure(err) => BadRequest(Json.obj("error" -> Json.fromString(err.getMessage)))
+          case Failure(err) =>
+            BadRequest(Json.obj(
+              "errors" -> Json.arr(
+                Json.obj("message" -> Json.fromString(err.getMessage))
+              )
+            ))
         }
       } yield response
     }

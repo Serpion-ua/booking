@@ -12,6 +12,7 @@ package object kafka {
   implicit val conflictEncoder: Encoder[BookingConflict] = deriveEncoder
   implicit val conflictDecoder: Decoder[BookingConflict] = deriveDecoder
 
+  //TODO use Avro instead
   implicit def valueSerializer[F[_]: Async]: Serializer[F, BookingConflict] =
     Serializer.string[F].contramap(_.asJson.noSpaces)
 

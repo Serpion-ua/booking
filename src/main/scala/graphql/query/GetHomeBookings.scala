@@ -2,7 +2,6 @@ package graphql.query
 
 import cats.effect.IO
 import cats.effect.unsafe.IORuntime
-import graphql.{GraphQLSchema, UUIDType}
 import io.circe.generic.auto._
 import model.Booking
 import model.Booking.HomeId

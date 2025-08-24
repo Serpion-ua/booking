@@ -10,7 +10,7 @@ import sangria.schema._
 object GraphQLSchema {
   case class Context[F[_]](bookingHandler: BookingHandler[F])
 
-  def mutationType(implicit runtime: IORuntime): ObjectType[Context[IO], Unit] = {
+  private def mutationType(implicit runtime: IORuntime): ObjectType[Context[IO], Unit] = {
     ObjectType(
       "Mutation",
       fields[Context[IO], Unit](
@@ -19,7 +19,7 @@ object GraphQLSchema {
     )
   }
 
-  def queryType(implicit runtime: IORuntime): ObjectType[Context[IO], Unit] =
+  private def queryType(implicit runtime: IORuntime): ObjectType[Context[IO], Unit] =
     ObjectType(
       "Query",
       fields[Context[IO], Unit](
